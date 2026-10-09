@@ -341,7 +341,18 @@ document.addEventListener('DOMContentLoaded', () => {
     panel.classList.remove('closed');
     categoryTag.textContent = `${place.region} • ${place.category}`;
 
-    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`;
+    // Build official Google Maps URLs with proper encoding
+    let directionsUrl;
+    let viewMapsUrl;
+
+    if (place.name || place.area) {
+      const q = encodeURIComponent(`${place.name}, ${place.area || ''}, Pune, Maharashtra, India`);
+      directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=driving`;
+      viewMapsUrl = `https://www.google.com/maps/search/?api=1&query=${q}`;
+    } else {
+      directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`;
+      viewMapsUrl = `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`;
+    }
 
     content.innerHTML = `
       <div>
@@ -398,8 +409,11 @@ document.addEventListener('DOMContentLoaded', () => {
         <p>${place.safetyTip}</p>
       </div>
 
-      <a href="${googleMapsUrl}" target="_blank" class="btn btn-primary direction-btn">
-        🗺️ Get Directions on Map
+      <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary direction-btn" aria-label="Get driving directions to ${place.name || 'destination'} on Google Maps">
+        🗺️ Get Directions
+      </a>
+      <a href="${viewMapsUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="width: 100%; margin-top: 0.4rem; justify-content: center;" aria-label="View ${place.name || 'place'} on Google Maps">
+        📍 View on Google Maps
       </a>
     `;
 
