@@ -1,6 +1,6 @@
 /**
- * CityPulse Pune - Main Application Script
- * Vanilla JavaScript Implementation
+ * CityPulse PMR - Main Application Script
+ * Smart Exploration, Safety & Insights across Pune Metropolitan Region
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let reportTargetCoords = null;
   let reportTempMarker = null;
   let isPickingMapLocation = false;
+  let isInitialLoad = true;
 
   // WMO Weather Code Map
   const weatherCodeMap = {
@@ -78,17 +79,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Initialize Leaflet Map centered at Pune
+  // Initialize Leaflet Map
   function initMap() {
-    const puneCoords = [18.5204, 73.8567];
+    // Default center set broadly to cover PMR region
+    const pmrCenter = [18.5800, 73.7800];
     
     map = L.map('map', {
-      center: puneCoords,
-      zoom: 12.5,
+      center: pmrCenter,
+      zoom: 10,
       zoomControl: true
     });
 
-    // Dark styled basemap or standard OSM
+    // Tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 18
@@ -125,11 +127,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Render Category Place Pins on Map
+  // Render Category Place Pins on Map & Fit Bounds to show whole PMR Region
   function renderPlacesOnMap() {
     layers.places.clearLayers();
 
     const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+    const regionFilter = document.getElementById('region-filter').value;
     const categoryFilter = document.getElementById('category-filter').value;
     const budgetFilter = document.getElementById('budget-filter').value;
     const minSafety = parseFloat(document.getElementById('safety-filter').value);
@@ -140,12 +143,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             place.address.toLowerCase().includes(searchTerm) ||
                             place.category.toLowerCase().includes(searchTerm);
       
+      const matchesRegion = regionFilter === 'all' || place.region === regionFilter;
       const matchesCategory = categoryFilter === 'all' || place.category === categoryFilter;
       const matchesBudget = budgetFilter === 'all' || place.budget === budgetFilter;
       const matchesSafety = place.safetyScore >= minSafety;
 
-      return matchesSearch && matchesCategory && matchesBudget && matchesSafety;
+      return matchesSearch && matchesRegion && matchesCategory && matchesBudget && matchesSafety;
     });
+
+    const markerGroup = [];
 
     filteredPlaces.forEach(place => {
       let iconChar = '📍';
@@ -171,7 +177,15 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       marker.addTo(layers.places);
+      markerGroup.push(marker);
     });
+
+    // Auto-fit bounds on initial load so the entire PMR region is visible
+    if (isInitialLoad && markerGroup.length > 0) {
+      const featureGroup = L.featureGroup(markerGroup);
+      map.fitBounds(featureGroup.getBounds(), { padding: [40, 40] });
+      isInitialLoad = false;
+    }
   }
 
   // Render Demo Unsafe Zones (Circles)
@@ -256,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const content = document.getElementById('panel-content');
 
     panel.classList.remove('closed');
-    categoryTag.textContent = place.category;
+    categoryTag.textContent = `${place.region} • ${place.category}`;
 
     const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`;
 
@@ -269,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="place-badges">
         <span class="badge badge-rating">⭐ ${place.rating} / 5.0</span>
         <span class="badge badge-budget">Budget: ${place.budget}</span>
+        <span class="badge" style="background: var(--primary-light); color: var(--primary);">${place.region}</span>
       </div>
 
       <p style="font-size: 0.875rem; color: var(--text-muted); line-height: 1.5;">
@@ -310,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       <!-- Localized Safety Tip -->
       <div class="safety-tip-box">
-        <h4>💡 Local Exploration Tip</h4>
+        <h4>💡 PMR Exploration Tip</h4>
         <p>${place.safetyTip}</p>
       </div>
 
@@ -327,11 +342,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Render City Insights View
   function renderInsightsView() {
+    const regionFilter = document.getElementById('insights-region-filter').value;
     const sortBy = document.getElementById('sort-insights').value;
     const grid = document.getElementById('insights-grid');
     const highlights = document.getElementById('insights-highlights');
 
-    const sorted = [...appData.neighborhoodInsights].sort((a, b) => {
+    const filteredInsights = appData.neighborhoodInsights.filter(n => {
+      return regionFilter === 'all' || n.region === regionFilter;
+    });
+
+    const sorted = [...filteredInsights].sort((a, b) => {
       if (sortBy === 'safety') return b.safetyScore - a.safetyScore;
       if (sortBy === 'cleanliness') return b.cleanlinessScore - a.cleanlinessScore;
       if (sortBy === 'affordability') return b.affordabilityScore - a.affordabilityScore;
@@ -347,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="highlight-card">
         <div class="highlight-icon safety">🛡️</div>
         <div class="highlight-info">
-          <h4>Safest Neighborhood</h4>
+          <h4>Safest PMR Zone</h4>
           <div class="name">${topSafety.name}</div>
           <div class="score">Score: ${topSafety.safetyScore}/10</div>
         </div>
@@ -378,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="card-top">
           <div>
             <div class="card-title">${n.name}</div>
-            <div class="card-type">${n.type}</div>
+            <div class="card-type">${n.region} • ${n.type}</div>
           </div>
           <span class="rank-badge">Rank #${index + 1}</span>
         </div>
@@ -420,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('');
   }
 
-  // Fetch Live Weather using Open-Meteo API
+  // Fetch Live Weather using Open-Meteo API for Central PMR
   async function fetchLiveWeather() {
     const widget = document.getElementById('weather-widget');
     const alertBar = document.getElementById('alert-text');
@@ -443,24 +463,24 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="weather-info">
           <span class="weather-temp">${temp}°C</span>
           <div class="weather-details">
-            <span class="weather-desc">Pune: ${weatherInfo.desc}</span>
+            <span class="weather-desc">PMR Region: ${weatherInfo.desc}</span>
             <span class="weather-sub">Humidity: ${humidity}% | Wind: ${wind} km/h</span>
           </div>
         </div>
       `;
 
-      // Smart Weather Insights Alert
+      // Smart Weather Insights Alert across PMR
       if (temp > 34) {
-        alertBar.textContent = `☀️ High temperature alert (${temp}°C) in Pune! Stay hydrated while exploring heritage outdoor spots like Shaniwar Wada.`;
+        alertBar.textContent = `☀️ High temperature alert (${temp}°C) across PMR! Stay hydrated while exploring outdoor spots in Hinjewadi, Lonavala or Shaniwar Wada.`;
       } else if (code >= 51) {
-        alertBar.textContent = `🌧️ Rain/Drizzle alert in Pune! Drive cautiously around Katraj Ghat and Sinhagad hill routes.`;
+        alertBar.textContent = `🌧️ Monsoon Rain/Drizzle alert in PMR region! Drive cautiously on Pune-Mumbai Expressway near Talegaon & Lonavala Ghat.`;
       } else {
-        alertBar.textContent = `🌤️ Pleasant Pune weather (${temp}°C, ${weatherInfo.desc}). Great conditions for city exploration & local food walks!`;
+        alertBar.textContent = `🌤️ Pleasant PMR weather (${temp}°C, ${weatherInfo.desc}). Great conditions for exploring Pune City, PCMC, and Talegaon!`;
       }
 
     } catch (err) {
-      widget.innerHTML = `<span style="color:#f59e0b;">🌤️ Pune: 28°C (Live Weather API Offline)</span>`;
-      alertBar.textContent = `🌤️ Ideal exploration weather in Pune. Enjoy your city tour!`;
+      widget.innerHTML = `<span style="color:#f59e0b;">🌤️ PMR Region: 28°C (Live Weather API Offline)</span>`;
+      alertBar.textContent = `🌤️ Ideal exploration weather across Pune Metropolitan Region. Enjoy your city tour!`;
     }
   }
 
@@ -506,6 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function setupEventListeners() {
     // Filters Event Listeners
     document.getElementById('search-input').addEventListener('input', renderPlacesOnMap);
+    document.getElementById('region-filter').addEventListener('change', renderPlacesOnMap);
     document.getElementById('category-filter').addEventListener('change', renderPlacesOnMap);
     document.getElementById('budget-filter').addEventListener('change', renderPlacesOnMap);
     
@@ -518,6 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Reset Filters Button Listener
     document.getElementById('btn-reset-filters').addEventListener('click', () => {
       document.getElementById('search-input').value = '';
+      document.getElementById('region-filter').value = 'all';
       document.getElementById('category-filter').value = 'all';
       document.getElementById('budget-filter').value = 'all';
       document.getElementById('safety-filter').value = '0';
@@ -559,7 +581,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Insights Sort Select
+    // Insights Region & Sort Select
+    document.getElementById('insights-region-filter').addEventListener('change', renderInsightsView);
     document.getElementById('sort-insights').addEventListener('change', renderInsightsView);
 
     // Open Report Modal
