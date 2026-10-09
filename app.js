@@ -55,28 +55,70 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Navigation Tab Switching
+  // Navigation Tab Switching with WAI-ARIA and Keyboard Navigation
   function initTabs() {
-    const tabs = document.querySelectorAll('.nav-tab');
+    const tabList = document.querySelector('.nav-tabs');
+    const tabs = Array.from(document.querySelectorAll('.nav-tab'));
     const views = document.querySelectorAll('.view-panel');
+
+    function activateTab(targetTab) {
+      const viewTarget = targetTab.dataset.view;
+
+      tabs.forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+        t.setAttribute('tabindex', '-1');
+      });
+      views.forEach(v => v.classList.remove('active'));
+
+      targetTab.classList.add('active');
+      targetTab.setAttribute('aria-selected', 'true');
+      targetTab.setAttribute('tabindex', '0');
+
+      const targetView = document.getElementById(`view-${viewTarget}`);
+      if (targetView) targetView.classList.add('active');
+
+      if (viewTarget === 'explore') {
+        setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+      } else if (viewTarget === 'insights') {
+        renderInsightsView();
+      }
+    }
 
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
-        const viewTarget = tab.dataset.view;
-
-        tabs.forEach(t => t.classList.remove('active'));
-        views.forEach(v => v.classList.remove('active'));
-
-        tab.classList.add('active');
-        document.getElementById(`view-${viewTarget}`).classList.add('active');
-
-        if (viewTarget === 'explore') {
-          setTimeout(() => map.invalidateSize(), 200);
-        } else if (viewTarget === 'insights') {
-          renderInsightsView();
-        }
+        activateTab(tab);
       });
     });
+
+    // Arrow-key support for tab navigation (Left/Right, Up/Down, Home, End)
+    if (tabList) {
+      tabList.addEventListener('keydown', (e) => {
+        const activeTab = document.activeElement;
+        const currentIndex = tabs.indexOf(activeTab);
+        if (currentIndex === -1) return;
+
+        let nextIndex = currentIndex;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          nextIndex = (currentIndex + 1) % tabs.length;
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          nextIndex = 0;
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          nextIndex = tabs.length - 1;
+        } else {
+          return;
+        }
+
+        tabs[nextIndex].focus();
+        activateTab(tabs[nextIndex]);
+      });
+    }
   }
 
   // Initialize Leaflet Map
@@ -89,6 +131,14 @@ document.addEventListener('DOMContentLoaded', () => {
       zoom: 10,
       zoomControl: true
     });
+
+    // Add accessible labels to Leaflet default zoom controls
+    setTimeout(() => {
+      const zoomIn = document.querySelector('.leaflet-control-zoom-in');
+      const zoomOut = document.querySelector('.leaflet-control-zoom-out');
+      if (zoomIn) zoomIn.setAttribute('aria-label', 'Zoom in');
+      if (zoomOut) zoomOut.setAttribute('aria-label', 'Zoom out');
+    }, 100);
 
     // Tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -151,6 +201,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return matchesSearch && matchesRegion && matchesCategory && matchesBudget && matchesSafety;
     });
 
+    const resultsCountEl = document.getElementById('filter-results-count');
+    if (resultsCountEl) {
+      const count = filteredPlaces.length;
+      resultsCountEl.textContent = `${count} ${count === 1 ? 'place' : 'places'} found`;
+    }
+
     const markerGroup = [];
 
     filteredPlaces.forEach(place => {
@@ -162,14 +218,19 @@ document.addEventListener('DOMContentLoaded', () => {
       else if (place.category === 'Hospitality') { iconChar = '🏨'; pinClass = 'pin-hospitality'; }
       else if (place.category === 'Parks/Attractions') { iconChar = '🌳'; pinClass = 'pin-parks'; }
 
+      const markerText = `${place.name} (${place.category})`;
       const customIcon = L.divIcon({
         className: 'custom-pin-wrapper',
-        html: `<div class="custom-pin ${pinClass}">${iconChar}</div>`,
+        html: `<div class="custom-pin ${pinClass}" role="img" aria-label="${markerText}" title="${markerText}">${iconChar}</div>`,
         iconSize: [34, 34],
         iconAnchor: [17, 17]
       });
 
-      const marker = L.marker([place.lat, place.lng], { icon: customIcon });
+      const marker = L.marker([place.lat, place.lng], {
+        icon: customIcon,
+        title: markerText,
+        alt: markerText
+      });
 
       marker.on('click', () => {
         openSidePanel(place);
@@ -241,20 +302,25 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderUserReportMarkers() {
     layers.userReports.clearLayers();
     userReports.forEach(report => {
+      const reportText = `${report.title} (${report.type})`;
       const customIcon = L.divIcon({
         className: 'custom-pin-wrapper',
-        html: `<div class="custom-pin pin-report">🚨</div>`,
+        html: `<div class="custom-pin pin-report" role="img" aria-label="${reportText}" title="${reportText}">🚨</div>`,
         iconSize: [34, 34],
         iconAnchor: [17, 17]
       });
 
-      const marker = L.marker([report.lat, report.lng], { icon: customIcon });
+      const marker = L.marker([report.lat, report.lng], {
+        icon: customIcon,
+        title: reportText,
+        alt: reportText
+      });
       marker.bindPopup(`
         <div style="font-family: var(--font-family); padding: 4px;">
           <h4 style="color:#ec4899; margin-bottom:4px;">🚨 ${report.title}</h4>
-          <p style="font-size:11px; color:#64748b; margin-bottom:4px;">Category: <strong>${report.type}</strong></p>
-          <p style="font-size:12px;">${report.desc}</p>
-          <span style="font-size:10px; color:#94a3b8; display:block; margin-top:4px;">Reported by citizen on ${new Date(report.timestamp).toLocaleDateString()}</span>
+          <p style="font-size:11px; color:#334155; margin-bottom:4px;">Category: <strong>${report.type}</strong></p>
+          <p style="font-size:12px; color:#1e293b;">${report.desc}</p>
+          <span style="font-size:10px; color:#475569; display:block; margin-top:4px;">Reported by citizen on ${new Date(report.timestamp).toLocaleDateString()}</span>
         </div>
       `);
 
@@ -262,8 +328,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  let lastDetailsTrigger = null;
+
   // Open Place Details Side Panel
   function openSidePanel(place) {
+    lastDetailsTrigger = document.activeElement;
     selectedPlaceId = place.id;
     const panel = document.getElementById('place-details-panel');
     const categoryTag = document.getElementById('panel-category');
@@ -333,12 +402,25 @@ document.addEventListener('DOMContentLoaded', () => {
         🗺️ Get Directions on Map
       </a>
     `;
+
+    // Move focus into the details panel
+    const closeBtn = document.getElementById('panel-close-btn');
+    if (closeBtn) {
+      setTimeout(() => closeBtn.focus(), 50);
+    }
   }
 
-  // Close Side Panel
-  document.getElementById('panel-close-btn').addEventListener('click', () => {
-    document.getElementById('place-details-panel').classList.add('closed');
-  });
+  // Close Side Panel and return focus
+  function closeSidePanel() {
+    const panel = document.getElementById('place-details-panel');
+    panel.classList.add('closed');
+    if (lastDetailsTrigger && typeof lastDetailsTrigger.focus === 'function') {
+      lastDetailsTrigger.focus();
+      lastDetailsTrigger = null;
+    }
+  }
+
+  document.getElementById('panel-close-btn').addEventListener('click', closeSidePanel);
 
   // Render City Insights View
   function renderInsightsView() {
@@ -547,50 +629,44 @@ document.addEventListener('DOMContentLoaded', () => {
       renderPlacesOnMap();
     });
 
-    // Layer Toggle Controls
-    document.getElementById('toggle-unsafe').addEventListener('change', (e) => {
-      const chip = document.getElementById('toggle-unsafe-chip');
-      if (e.target.checked) {
-        map.addLayer(layers.unsafe);
-        chip.classList.add('active');
-      } else {
-        map.removeLayer(layers.unsafe);
-        chip.classList.remove('active');
-      }
-    });
+    // Layer Toggle Controls (Accessible Toggle Buttons with aria-pressed)
+    function setupLayerToggle(id, layer) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('click', () => {
+        const isPressed = el.getAttribute('aria-pressed') === 'true';
+        const newState = !isPressed;
+        el.setAttribute('aria-pressed', String(newState));
+        el.classList.toggle('active', newState);
+        if (newState) {
+          map.addLayer(layer);
+        } else {
+          map.removeLayer(layer);
+        }
+      });
+    }
 
-    document.getElementById('toggle-traffic').addEventListener('change', (e) => {
-      const chip = document.getElementById('toggle-traffic-chip');
-      if (e.target.checked) {
-        map.addLayer(layers.traffic);
-        chip.classList.add('active');
-      } else {
-        map.removeLayer(layers.traffic);
-        chip.classList.remove('active');
-      }
-    });
-
-    document.getElementById('toggle-user-reports').addEventListener('change', (e) => {
-      const chip = document.getElementById('toggle-user-reports-chip');
-      if (e.target.checked) {
-        map.addLayer(layers.userReports);
-        chip.classList.add('active');
-      } else {
-        map.removeLayer(layers.userReports);
-        chip.classList.remove('active');
-      }
-    });
+    setupLayerToggle('toggle-unsafe-chip', layers.unsafe);
+    setupLayerToggle('toggle-traffic-chip', layers.traffic);
+    setupLayerToggle('toggle-user-reports-chip', layers.userReports);
 
     // Insights Region & Sort Select
     document.getElementById('insights-region-filter').addEventListener('change', renderInsightsView);
     document.getElementById('sort-insights').addEventListener('change', renderInsightsView);
 
-    // Open Report Modal
+    // Open Report Modal with Focus Management
+    let lastModalTrigger = null;
     const modal = document.getElementById('report-modal');
+
     document.getElementById('btn-open-report-mode').addEventListener('click', () => {
+      lastModalTrigger = document.activeElement;
       const center = map.getCenter();
       setReportCoordinates(center.lat, center.lng);
       modal.classList.add('active');
+      const firstInput = document.getElementById('report-type');
+      if (firstInput) {
+        setTimeout(() => firstInput.focus(), 50);
+      }
     });
 
     // Interactive Map Pinpoint Location flow
@@ -598,15 +674,19 @@ document.addEventListener('DOMContentLoaded', () => {
       modal.classList.remove('active');
       isPickingMapLocation = true;
       document.getElementById('map-picker-banner').classList.add('active');
+      const confirmBtn = document.getElementById('btn-confirm-map-pick');
+      if (confirmBtn) confirmBtn.focus();
     });
 
     document.getElementById('btn-confirm-map-pick').addEventListener('click', () => {
       isPickingMapLocation = false;
       document.getElementById('map-picker-banner').classList.remove('active');
       modal.classList.add('active');
+      const titleInput = document.getElementById('report-title');
+      if (titleInput) titleInput.focus();
     });
 
-    // Close Modal Buttons
+    // Close Modal Buttons with Focus Restoration
     document.getElementById('modal-close-btn').addEventListener('click', closeModal);
     document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
 
@@ -618,6 +698,50 @@ document.addEventListener('DOMContentLoaded', () => {
         map.removeLayer(reportTempMarker);
         reportTempMarker = null;
       }
+      if (lastModalTrigger && typeof lastModalTrigger.focus === 'function') {
+        lastModalTrigger.focus();
+        lastModalTrigger = null;
+      }
+    }
+
+    // Global Escape Key Handler for Details Panel, Report Modal, and Filters Sheet
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        const reportModalEl = document.getElementById('report-modal');
+        const detailsPanelEl = document.getElementById('place-details-panel');
+        const filtersBarEl = document.querySelector('.filters-bar');
+        
+        if (reportModalEl && reportModalEl.classList.contains('active')) {
+          closeModal();
+        } else if (detailsPanelEl && !detailsPanelEl.classList.contains('closed')) {
+          closeSidePanel();
+        } else if (filtersBarEl && filtersBarEl.classList.contains('open')) {
+          filtersBarEl.classList.remove('open');
+          const toggleBtn = document.getElementById('mobile-filters-toggle');
+          if (toggleBtn) toggleBtn.focus();
+        }
+      }
+    });
+
+    // Mobile Filters Sheet Logic
+    const mobileFiltersToggle = document.getElementById('mobile-filters-toggle');
+    const mobileFiltersClose = document.getElementById('mobile-filters-close');
+    const filtersBar = document.querySelector('.filters-bar');
+
+    if (mobileFiltersToggle && mobileFiltersClose && filtersBar) {
+      mobileFiltersToggle.addEventListener('click', () => {
+        filtersBar.classList.add('open');
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.focus();
+      });
+      mobileFiltersClose.addEventListener('click', () => {
+        filtersBar.classList.remove('open');
+        mobileFiltersToggle.focus();
+      });
+      // Close on tap outside (if clicking map)
+      map.on('click', () => {
+        filtersBar.classList.remove('open');
+      });
     }
 
     // Submit Report Form
@@ -660,22 +784,3 @@ document.addEventListener('DOMContentLoaded', () => {
   // Start App
   init();
 });
-
-
-// Mobile Filters Sheet Logic
-const mobileFiltersToggle = document.getElementById('mobile-filters-toggle');
-const mobileFiltersClose = document.getElementById('mobile-filters-close');
-const filtersBar = document.querySelector('.filters-bar');
-
-if (mobileFiltersToggle && mobileFiltersClose && filtersBar) {
-  mobileFiltersToggle.addEventListener('click', () => {
-    filtersBar.classList.add('open');
-  });
-  mobileFiltersClose.addEventListener('click', () => {
-    filtersBar.classList.remove('open');
-  });
-  // Close on tap outside (if clicking map)
-  map.on('click', () => {
-    filtersBar.classList.remove('open');
-  });
-}

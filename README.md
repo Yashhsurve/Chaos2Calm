@@ -72,6 +72,16 @@ Add screenshots here
    ```
    Open `http://localhost:8080` (or the URL shown in your terminal) in your browser.
 
+## 🧪 Testing
+
+Chaos2Calm includes automated dataset testing and a comprehensive manual testing checklist:
+
+- **Automated Data Validation:** Validate all places, coordinates, categories, budgets, and scores in `data.json`:
+  ```bash
+  node tests/data.test.js
+  ```
+- **Manual Test Checklist:** Step-by-step verification guide covering map load, filters, pin details, layers, report issue, insights, weather, and mobile layout. See [TESTING.md](TESTING.md).
+
 ## ⚠️ Note
 Scores for safety, cleanliness, and affordability are demo data for this MVP, not verified real-world data.
 
