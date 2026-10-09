@@ -1058,75 +1058,163 @@ body {
   margin-left: 0.5rem;
 }
 
-/* Mobile Responsiveness (Improved Bottom Sheets) */
+
+/* Utilities for mobile */
+.desktop-only { display: inline-block; }
+.mobile-only { display: none; }
+
+/* Mobile Responsiveness */
 @media (max-width: 768px) {
-  .app-header {
-    height: auto;
-    flex-wrap: wrap;
-    padding: 0.75rem 1rem;
-  }
+  .desktop-only { display: none !important; }
+  .mobile-only { display: flex; }
   
+  .app-container {
+    padding-bottom: 60px; /* space for bottom nav */
+  }
+
+  /* Header - Compact */
+  .app-header {
+    height: 60px;
+    padding: 0.5rem 1rem;
+    flex-wrap: nowrap;
+  }
+  .brand-text p { display: none; }
+  
+  /* Weather - Icon & Temp Only */
+  .weather-widget { padding: 0.3rem 0.6rem; }
+  .weather-details { display: none; }
+  
+  /* Navigation Tabs - Bottom Bar */
   .nav-tabs {
-    position: static;
-    transform: none;
-    width: 100%;
-    justify-content: space-between;
-    order: 3;
-    margin-top: 0.5rem;
-  }
-
-  .weather-widget {
-    order: 2;
-  }
-
-  .filters-bar {
-    top: auto;
-    bottom: 5rem;
-    left: 1rem;
-    right: 1rem;
-    max-width: calc(100% - 2rem);
-    max-height: 40vh;
-    overflow-y: auto;
-    border-radius: 20px;
-    padding: 1rem;
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
-  }
-
-  .search-box {
-    min-width: 100%;
-  }
-
-  .fab-report {
-    bottom: 1rem;
-    right: 1rem;
-    padding: 0.6rem 1rem;
-  }
-
-  .details-panel {
-    position: absolute;
-    top: auto;
+    position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     width: 100%;
-    max-height: 70vh;
-    border: none;
-    border-top: 1px solid var(--border-color);
-    border-radius: 24px 24px 0 0;
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
-    z-index: 900;
+    transform: none;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    background: var(--bg-surface);
+    padding: 0.5rem 1rem;
+    z-index: 2000;
+    justify-content: space-around;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
+  }
+  .nav-tab {
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.7rem;
+    padding: 0.3rem;
+    flex: 1;
+    text-align: center;
   }
   
-  .details-panel.closed {
+  /* Weather Banner - Truncated */
+  .weather-alert-bar {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    padding: 0.4rem 1rem;
+  }
+  .alert-text {
+    display: inline;
+  }
+
+  /* Map filling remaining height */
+  .map-layout {
+    height: calc(100dvh - 60px - 60px); /* 100dvh minus header and nav */
+  }
+
+  /* Filters Toggle Button above Map */
+  #mobile-filters-toggle {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 400;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Filters Bottom Sheet */
+  .filters-bar {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-width: 100%;
+    max-height: 60vh;
+    border-radius: 20px 20px 0 0;
     transform: translateY(100%);
     opacity: 0;
-  }
-
-  .insights-container, .reports-container {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    z-index: 3000; /* above bottom nav when open */
+    flex-direction: column;
+    align-items: stretch;
     padding: 1.25rem;
+    pointer-events: none;
+  }
+  .filters-bar.open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: all;
+  }
+  .filters-header {
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .search-box { width: 100%; }
+  
+  /* Scrollable Toggles */
+  .layer-toggles {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .toggle-chip {
+    flex-shrink: 0;
+  }
+  
+  /* Floating Report Button */
+  .fab-report {
+    bottom: calc(60px + 1.5rem); /* Above bottom nav */
+    right: 1.5rem;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 50%;
+    justify-content: center;
+  }
+  .fab-report svg { margin: 0 !important; }
+
+  /* Place Details Panel Bottom Sheet */
+  .details-panel {
+    top: auto;
+    bottom: 60px; /* Above bottom nav */
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 70vh;
+    border-radius: 24px 24px 0 0;
+    transform: translateY(120%);
+  }
+  .details-panel.open, .details-panel:not(.closed) {
+    transform: translateY(0);
+    opacity: 1;
   }
 
-  .insights-grid {
-    grid-template-columns: 1fr;
+  .insights-grid { grid-template-columns: 1fr; }
+  
+  /* Touch targets minimum 44px */
+  .btn, .filter-select, .nav-tab, .toggle-chip, .close-btn, .search-box input {
+    min-height: 44px;
   }
+  
+  /* Ensure report modal fits */
+  .modal-card { max-height: 90vh; overflow-y: auto; }
 }

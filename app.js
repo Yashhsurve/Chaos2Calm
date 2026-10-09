@@ -660,3 +660,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // Start App
   init();
 });
+
+
+// Mobile Filters Sheet Logic
+const mobileFiltersToggle = document.getElementById('mobile-filters-toggle');
+const mobileFiltersClose = document.getElementById('mobile-filters-close');
+const filtersBar = document.querySelector('.filters-bar');
+
+if (mobileFiltersToggle && mobileFiltersClose && filtersBar) {
+  mobileFiltersToggle.addEventListener('click', () => {
+    filtersBar.classList.add('open');
+  });
+  mobileFiltersClose.addEventListener('click', () => {
+    filtersBar.classList.remove('open');
+  });
+  // Close on tap outside (if clicking map)
+  map.on('click', () => {
+    filtersBar.classList.remove('open');
+  });
+}
